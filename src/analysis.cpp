@@ -59,22 +59,22 @@ void Analysis(std::vector<std::string> &files, ParamList &params,
     // Configure variables
     bool ft, summary;
     AnalyzeParams(params, &ft, &summary);
-    
+
     Result r;
     Periodogram p;
-    
+
     // Process files
     for (unsigned int i = 0; i < files.size(); ++i) {
         r.points = PointSet::Load(files[i]);
-        
+
         const int npoints = r.points.size();
         const float fnorm = 2.f / sqrtf(npoints);
         const float rnorm = 1.f / sqrtf(2.f / (SQRT3 * npoints));
         const int ftsize  = config.frange / fnorm;
-        
+
         r.npoints = npoints;
         r.nsets = 1;
-        
+
         // Fourier transform if necessary
         if (ft) {
             Spectrum s(ftsize * 2);
@@ -82,7 +82,7 @@ void Analysis(std::vector<std::string> &files, ParamList &params,
             p = Periodogram(s);
             p.Divide(npoints);
         }
-        
+
         // Process params
         if (params.GetBool("spatial") || params.GetBool("stats") || summary)
             SpatialStatistics(r.points, npoints, &r.stats);
@@ -94,7 +94,12 @@ void Analysis(std::vector<std::string> &files, ParamList &params,
             p.RadialPower(&r.rp);
         }
         if (params.GetBool("rdf") || summary) {
-            float maxdist = config.rrange / rnorm;
+            float maxdist = params.GetFloat("maxdist");
+            //-1 encodes we don't use the parameter -> autoset it
+            if (maxdist < 0.0f) {
+              maxdist = config.rrange / rnorm;
+            }
+            std::cout << "Computing RDF with maximum distance " << maxdist << std::endl;
             int nbins = config.rbinsize * npoints;
             r.rdf = Curve(nbins, 0, maxdist);
             r.points.RDF(&r.rdf);
@@ -131,29 +136,29 @@ void AnalysisAverage(std::vector<std::string> &files, ParamList &params,
     const float rnorm = 1.f / sqrtf(2.f / (SQRT3 * npoints));
     const int ftsize = config.frange / fnorm;
     const float maxdist = config.rrange / rnorm;
-    
+
     Result r;
     Periodogram p(ftsize * 2);
-    
+
     int nbins = config.rbinsize * npoints;
     r.rdf = Curve(nbins, 0, maxdist);
     r.npoints = npoints;
     r.nsets = files.size();
-    
+
     // Process files
     if (ft) PrintProgress("FT", 0);
     for (unsigned int i = 0; i < files.size(); ++i) {
         PointSet points = PointSet::Load(files[i]);
         if (i == 0)
             r.points = points;
-        
+
         // Fourier transform if necessary
         if (ft) {
             Spectrum s(ftsize * 2);
             Spectrum::PointSetSpectrum(&s, points, npoints);
             p.Accumulate(Periodogram(s));
         }
-        
+
         // Accumulate other measures if necessary
         if (params.GetBool("spatial") || params.GetBool("stats") || summary) {
             Statistics stats;
@@ -168,16 +173,16 @@ void AnalysisAverage(std::vector<std::string> &files, ParamList &params,
             points.RDF(&rdf);
             r.rdf.Accumulate(rdf);
         }
-        
+
         if (ft) PrintProgress("FT", (i+1) / (float) files.size());
     }
     if (ft) std::cout << std::endl;
-    
+
     // Finish
     r.stats.Divide(files.size());
     p.Divide(npoints * files.size());
     r.rdf.Divide(files.size());
-    
+
     // Process params
     if (params.GetBool("spectral") || params.GetBool("stats") || summary) {
         std::vector<PointSet> sets(files.size());
