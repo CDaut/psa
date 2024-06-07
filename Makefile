@@ -21,7 +21,7 @@ endif
 
 OBJDIR := obj
 SRCDIR := src
-CXXFILES := main.cpp analysis.cpp config.cpp curve.cpp delaunay.cpp image.cpp param.cpp periodogram.cpp point.cpp result.cpp spectrum.cpp statistics.cpp
+CXXFILES :=
 
 OBJS   := $(patsubst %.cpp,$(OBJDIR)/%.cpp.o,$(notdir $(CXXFILES)))
 TARGET := psa
